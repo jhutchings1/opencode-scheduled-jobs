@@ -44,14 +44,14 @@ export function JobsView(props: { state: JobsState; defaultWorkdir: () => string
         </Match>
         <Match when={(() => { const s = screen(); return s.kind === "detail" ? s : undefined })()}>
           {(s) => (
-            <JobDetail state={props.state} ref={s().ref} onBack={() => setScreen({ kind: "list" })} onEdit={() => setScreen({ kind: "form", ref: s().ref })} />
+            <JobDetail state={props.state} target={s().ref} onBack={() => setScreen({ kind: "list" })} onEdit={() => setScreen({ kind: "form", ref: s().ref })} />
           )}
         </Match>
         <Match when={(() => { const s = screen(); return s.kind === "form" ? s : undefined })()}>
           {(s) => (
             <JobForm
               state={props.state}
-              ref={s().ref}
+              target={s().ref}
               defaultWorkdir={props.defaultWorkdir}
               onDone={(ref) => setScreen(ref ? { kind: "detail", ref } : { kind: "list" })}
             />
@@ -250,20 +250,23 @@ function JobRow(props: {
   )
 }
 
-function JobDetail(props: { state: JobsState; ref: Ref; onBack: () => void; onEdit: () => void }) {
+function JobDetail(props: { state: JobsState; target: Ref; onBack: () => void; onEdit: () => void }) {
   const ctx = usePlugin<typeof definition>()
   const actions = useActions(props.state)
   // Refetch whenever the shared list changes, which follows the server's `changed` events.
-  const source = () => ({ ...props.ref, version: props.state.jobs() })
+  const source = () => ({ ...props.target, version: props.state.jobs() })
   const [detail] = createResource(source, (ref) => props.state.rpc().get({ scopeId: ref.scopeId, slug: ref.slug }))
   const [log] = createResource(source, (ref) => props.state.rpc().log({ scopeId: ref.scopeId, slug: ref.slug, lines: 200 }))
-  const job = () => detail.latest?.job
+  // Reading `latest` on an errored resource throws, which would blank the whole panel.
+  const data = () => (detail.error ? undefined : detail.latest)
+  const logText = () => (log.error ? errorMessage(log.error) : log.latest?.text)
+  const job = () => data()?.job
 
   return (
     <>
       <header class="sj-header">
         <ctx.ui.IconButton icon="arrow-left" label={ctx.t("action.back")} variant="ghost" onClick={props.onBack} />
-        <h2 class="sj-heading">{job()?.name ?? props.ref.slug}</h2>
+        <h2 class="sj-heading">{job()?.name ?? props.target.slug}</h2>
         <Show when={job()}>
           {(current) => (
             <>
@@ -313,10 +316,10 @@ function JobDetail(props: { state: JobsState; ref: Ref; onBack: () => void; onEd
             <h3 class="sj-subheading">{ctx.t("detail.prompt")}</h3>
             <pre class="sj-pre">{current().prompt}</pre>
             <h3 class="sj-subheading">{ctx.t("detail.runs")}</h3>
-            <Show when={(detail.latest?.runs.length ?? 0) > 0} fallback={<p class="sj-muted">{ctx.t("detail.runs.empty")}</p>}>
+            <Show when={(data()?.runs.length ?? 0) > 0} fallback={<p class="sj-muted">{ctx.t("detail.runs.empty")}</p>}>
               <table class="sj-table">
                 <tbody>
-                  <For each={detail.latest?.runs}>
+                  <For each={data()?.runs}>
                     {(run) => (
                       <tr>
                         <td>
@@ -334,7 +337,7 @@ function JobDetail(props: { state: JobsState; ref: Ref; onBack: () => void; onEd
             </Show>
             <header class="sj-header">
               <h3 class="sj-subheading">{ctx.t("detail.log")}</h3>
-              <Show when={ctx.desktop && detail.latest?.logPath}>
+              <Show when={ctx.desktop && data()?.logPath}>
                 {(path) => (
                   <ctx.ui.Button variant="ghost" size="small" icon="folder" onClick={() => void ctx.desktop?.reveal(path())}>
                     {ctx.t("action.reveal")}
@@ -342,7 +345,7 @@ function JobDetail(props: { state: JobsState; ref: Ref; onBack: () => void; onEd
                 )}
               </Show>
             </header>
-            <pre class="sj-pre sj-log">{log.latest?.text || ctx.t("detail.log.empty")}</pre>
+            <pre class="sj-pre sj-log">{logText() || ctx.t("detail.log.empty")}</pre>
           </div>
         )}
       </Show>
@@ -383,9 +386,9 @@ function parsePreset(cron: string): { preset: Preset; minute: number; time: stri
   return { ...fallback, preset: "weekly", time, weekday: Number(dow) % 7 }
 }
 
-function JobForm(props: { state: JobsState; ref?: Ref; defaultWorkdir: () => string | undefined; onDone: (ref?: Ref) => void }) {
+function JobForm(props: { state: JobsState; target?: Ref; defaultWorkdir: () => string | undefined; onDone: (ref?: Ref) => void }) {
   const ctx = usePlugin<typeof definition>()
-  const existing = () => (props.ref ? props.state.jobs().find((job) => job.scopeId === props.ref?.scopeId && job.slug === props.ref?.slug) : undefined)
+  const existing = () => (props.target ? props.state.jobs().find((job) => job.scopeId === props.target?.scopeId && job.slug === props.target?.slug) : undefined)
   const initial = existing()
   const parsed = parsePreset(initial?.schedule ?? "0 9 * * 1-5")
 
@@ -427,8 +430,8 @@ function JobForm(props: { state: JobsState; ref?: Ref; defaultWorkdir: () => str
         title: title(),
         timeoutSeconds: timeoutValue(),
       }
-      const { job } = props.ref
-        ? await props.state.rpc().update({ ...props.ref, ...fields })
+      const { job } = props.target
+        ? await props.state.rpc().update({ ...props.target, ...fields })
         : await props.state.rpc().create(fields)
       ctx.toast.show({ title: ctx.t("toast.saved", { name: job.name }), variant: "success" })
       void props.state.refresh()
@@ -443,7 +446,7 @@ function JobForm(props: { state: JobsState; ref?: Ref; defaultWorkdir: () => str
   return (
     <>
       <header class="sj-header">
-        <ctx.ui.IconButton icon="arrow-left" label={ctx.t("action.back")} variant="ghost" onClick={() => props.onDone(props.ref)} />
+        <ctx.ui.IconButton icon="arrow-left" label={ctx.t("action.back")} variant="ghost" onClick={() => props.onDone(props.target)} />
         <h2 class="sj-heading">{initial ? ctx.t("form.edit", { name: initial.name }) : ctx.t("form.new")}</h2>
       </header>
       <form
@@ -521,7 +524,7 @@ function JobForm(props: { state: JobsState; ref?: Ref; defaultWorkdir: () => str
         </label>
         <Show when={error()}>{(message) => <p class="sj-error">{message()}</p>}</Show>
         <div class="sj-actions">
-          <ctx.ui.Button variant="ghost" onClick={() => props.onDone(props.ref)}>
+          <ctx.ui.Button variant="ghost" onClick={() => props.onDone(props.target)}>
             {ctx.t("form.cancel")}
           </ctx.ui.Button>
           <ctx.ui.Button variant="contrast" disabled={!valid()} busy={saving()} onClick={() => void save()}>

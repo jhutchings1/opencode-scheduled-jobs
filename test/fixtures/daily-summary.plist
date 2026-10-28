@@ -1,0 +1,41 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+  <key>Label</key>
+  <string>com.opencode.job.reports-03176133d1c0.daily-summary</string>
+  
+  <key>WorkingDirectory</key>
+  <string>/Users/example/projects/reports</string>
+  
+  <key>EnvironmentVariables</key>
+  <dict>
+    <key>PATH</key>
+    <string>/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin</string>
+  </dict>
+  
+  <key>ProgramArguments</key>
+  <array>
+    <string>/usr/bin/perl</string>
+    <string>/Users/example/.config/opencode/scheduler/supervisor.pl</string>
+    <string>/Users/example/.config/opencode/scheduler/scopes/reports-03176133d1c0/jobs/daily-summary.json</string>
+  </array>
+  
+  <key>StartCalendarInterval</key>
+  <dict>
+    <key>Minute</key>
+    <integer>0</integer>
+    <key>Hour</key>
+    <integer>12</integer>
+  </dict>
+  
+  <key>StandardOutPath</key>
+  <string>/Users/example/.config/opencode/logs/scheduler/reports-03176133d1c0/daily-summary.log</string>
+  
+  <key>StandardErrorPath</key>
+  <string>/Users/example/.config/opencode/logs/scheduler/reports-03176133d1c0/daily-summary.log</string>
+  
+  <key>RunAtLoad</key>
+  <false/>
+</dict>
+</plist>

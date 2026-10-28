@@ -1,0 +1,58 @@
+{
+  "name": "opencode-scheduled-jobs",
+  "version": "0.1.0",
+  "description": "Scheduled OpenCode jobs on macOS launchd, with agent tools and an OpenCode Desktop panel",
+  "license": "MIT",
+  "author": "Justin Hutchings",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/jhutchings1/opencode-scheduled-jobs.git"
+  },
+  "homepage": "https://github.com/jhutchings1/opencode-scheduled-jobs#readme",
+  "bugs": {
+    "url": "https://github.com/jhutchings1/opencode-scheduled-jobs/issues"
+  },
+  "keywords": [
+    "opencode",
+    "opencode-plugin",
+    "scheduler",
+    "cron",
+    "launchd"
+  ],
+  "os": [
+    "darwin"
+  ],
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts",
+    "./rpc": "./src/rpc.ts",
+    "./gui-experimental": "./dist/gui-experimental.cjs"
+  },
+  "files": [
+    "src",
+    "dist",
+    "scheduler"
+  ],
+  "scripts": {
+    "build": "vite build",
+    "dev": "vite build --watch",
+    "typecheck": "tsc --noEmit",
+    "test": "bun test",
+    "prepublishOnly": "bun run typecheck && bun test && bun run build"
+  },
+  "dependencies": {
+    "@opencode/plugin": "2.2.0"
+  },
+  "peerDependencies": {
+    "effect": "^4.0.0"
+  },
+  "devDependencies": {
+    "@types/bun": "^1.4.4",
+    "@types/node": "^26.6.5",
+    "effect": "4.0.1",
+    "solid-js": "^1.9.17",
+    "typescript": "^7.0.2",
+    "vite": "^8.3.5",
+    "vite-plugin-solid": "^2.11.14"
+  }
+}

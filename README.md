@@ -13,19 +13,24 @@ Run OpenCode prompts on a schedule on macOS, and manage them from the agent or f
 
 ## Install
 
-Add the plugin to your **global** OpenCode config. OpenCode Desktop only loads plugin UIs from the global config.
+The plugin isn't published to npm yet, so install from a checkout. Add the plugin to your **global** OpenCode config. OpenCode Desktop only loads plugin UIs from the global config.
 
 ```sh
-opencode plugin add opencode-scheduled-jobs
+git clone https://github.com/jhutchings1/opencode-scheduled-jobs.git
+cd opencode-scheduled-jobs
+bun install
+bun run build
 ```
 
-Or edit `~/.config/opencode/opencode.jsonc` yourself:
+Then add the checkout's absolute path to `~/.config/opencode/opencode.jsonc`:
 
 ```jsonc
 {
-  "plugins": ["opencode-scheduled-jobs"],
+  "plugins": ["/absolute/path/to/opencode-scheduled-jobs"],
 }
 ```
+
+Re-run `bun run build` after you pull new changes.
 
 If you used `opencode-scheduler`, remove it from your config. Your existing jobs keep running either way, because launchd runs them, not the plugin.
 

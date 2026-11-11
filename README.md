@@ -22,6 +22,10 @@ bun install
 bun run build
 ```
 
+Without bun, `npm install` and `npx vite build` work too.
+
+Build before you add the path to your config. OpenCode looks for the Desktop panel's bundle when it first loads the plugin. If `dist/` doesn't exist yet, the panel stays missing even after you build, and reloading the config or turning the plugin off and on doesn't bring it back. Run `opencode service restart`, then reopen OpenCode Desktop.
+
 Then add the checkout's absolute path to `~/.config/opencode/opencode.jsonc`:
 
 ```jsonc

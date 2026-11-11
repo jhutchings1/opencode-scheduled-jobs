@@ -182,7 +182,7 @@ if ($child_pid == 0) {
 }
 
 if (defined($timeout) && $timeout > 0) {
-  local $SIG{ALRM} = sub {
+  $SIG{ALRM} = sub {
     $timed_out = 1;
     my $now = iso_now();
     print "

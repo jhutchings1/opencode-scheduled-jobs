@@ -36,6 +36,14 @@ Then add the checkout's absolute path to `~/.config/opencode/opencode.jsonc`:
 
 Re-run `bun run build` after you pull new changes.
 
+Jobs run through a supervisor script that the plugin copies to `~/.config/opencode/scheduler/supervisor.pl` once and never updates. To pick up changes to `scheduler/supervisor.pl`, copy it over from the checkout:
+
+```sh
+cp scheduler/supervisor.pl ~/.config/opencode/scheduler/supervisor.pl.new && mv ~/.config/opencode/scheduler/supervisor.pl.new ~/.config/opencode/scheduler/supervisor.pl
+```
+
+Runs already in progress keep the old copy.
+
 If you used `opencode-scheduler`, remove it from your config. Your existing jobs keep running either way, because launchd runs them, not the plugin.
 
 ## Use

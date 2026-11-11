@@ -1,6 +1,6 @@
 // Runs the real scheduler/supervisor.pl against a temp HOME.
 import { afterAll, beforeAll, expect, test } from "bun:test"
-import { type ChildProcess, spawn } from "node:child_process"
+import { type ChildProcess, execFileSync, spawn } from "node:child_process"
 import { existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from "node:fs"
 import { tmpdir } from "node:os"
 import { join } from "node:path"
@@ -21,18 +21,35 @@ beforeAll(() => {
 afterAll(async () => {
   for (const proc of running) {
     const exited = new Promise((resolve) => proc.once("exit", resolve))
-    try {
-      proc.kill("SIGKILL")
-      await exited
-    } catch {}
+    killSupervisor(proc)
+    await exited
   }
   for (const file of readdirSync(root).filter((name) => name.endsWith(".pid"))) {
-    try {
-      process.kill(-Number(readFileSync(join(root, file), "utf8")), "SIGKILL")
-    } catch {}
+    killGroup(Number(readFileSync(join(root, file), "utf8").trim()))
   }
   rmSync(root, { recursive: true, force: true })
 })
+
+// Rejects 0, 1 and NaN, so a bad PID can never signal this process's own group or init.
+// Signals the PID itself only for a live child of a supervisor we started, which may not have called setsid yet.
+function killGroup(pid: number, alsoPid = false) {
+  if (!Number.isSafeInteger(pid) || pid <= 1) return
+  for (const target of alsoPid ? [-pid, pid] : [-pid]) {
+    try {
+      process.kill(target, "SIGKILL")
+    } catch {}
+  }
+}
+
+// Kills the supervisor's forked child first, even if it hasn't written its PID file yet.
+function killSupervisor(proc: ChildProcess) {
+  let children = ""
+  try {
+    children = execFileSync("/usr/bin/pgrep", ["-P", String(proc.pid)], { encoding: "utf8" })
+  } catch {}
+  for (const line of children.split("\n")) killGroup(Number(line), true)
+  proc.kill("SIGKILL")
+}
 
 const scopeDir = (scopeId: string) => join(config, "scheduler", "scopes", scopeId)
 const lockPath = (scopeId: string) => join(scopeDir(scopeId), "locks", "job.json")
@@ -49,7 +66,7 @@ const base = (scopeId: string): Job => ({ scopeId, slug: "job", name: "Job", sch
 const pidFile = (scopeId: string) => join(root, `${scopeId}.pid`)
 const sleeper = (scopeId: string, prefix = "") => ({
   command: "/bin/sh",
-  args: ["-c", `${prefix}echo $$ > '${pidFile(scopeId)}'; exec sleep 30`],
+  args: ["-c", `${prefix}echo $$ > '${pidFile(scopeId)}.tmp' && mv '${pidFile(scopeId)}.tmp' '${pidFile(scopeId)}'; exec sleep 30`],
 })
 
 function runSupervisor(job: Job): Promise<{ code: number | null; signal: string | null }> {
@@ -60,7 +77,7 @@ function runSupervisor(job: Job): Promise<{ code: number | null; signal: string 
     const proc = spawn("/usr/bin/perl", [supervisor, jobPath], { env: { ...process.env, HOME: home }, stdio: "ignore" })
     running.add(proc)
     const deadline = setTimeout(() => {
-      proc.kill("SIGKILL")
+      killSupervisor(proc)
       reject(new Error("supervisor did not exit within 15s"))
     }, 15_000)
     proc.once("error", (err) => {
@@ -100,6 +117,7 @@ test("a timeout kills the job, not the supervisor", async () => {
   expect(readJobFile("timeout-a").lastRunError).toBe("timeout")
   expect(run.pid).toBe(Number(readFileSync(pidFile("timeout-a"), "utf8")))
   expectGroupGone(run.pid)
+  rmSync(pidFile("timeout-a"))
 }, 20_000)
 
 test("a child that ignores SIGTERM is killed after the grace period", async () => {
@@ -114,6 +132,7 @@ test("a child that ignores SIGTERM is killed after the grace period", async () =
   // TERM was ignored, so only the KILL after the 5s grace period ended it.
   expect(run.durationMs).toBeGreaterThanOrEqual(5500)
   expectGroupGone(run.pid)
+  rmSync(pidFile("timeout-b"))
 }, 20_000)
 
 test.each([

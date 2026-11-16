@@ -98,6 +98,8 @@ opencode api post "/api/rpc/scheduled-jobs/list?location%5Bdirectory%5D=$PWD" --
 
 Tests run against a temporary `HOME` with a stub `launchctl`, and refuse to run if any path resolves outside it.
 
+To release, bump `version` in `package.json`, merge to `main`, then push a matching tag (for example `git tag v0.2.0 && git push origin v0.2.0`). The release workflow runs the checks, builds, and attaches the `npm pack` tarball to a GitHub Release.
+
 ## License
 
 MIT. Includes code from [opencode-scheduler](https://github.com/different-ai/opencode-scheduler), also MIT. See [LICENSE](LICENSE).
